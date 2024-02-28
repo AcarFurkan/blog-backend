@@ -1,2 +1,9 @@
-package com.acar.project.requests;public class CommentUpdateRequest {
+package com.acar.project.requests;
+
+
+import lombok.Data;
+
+@Data
+public class CommentUpdateRequest {
+    String text;
 }
