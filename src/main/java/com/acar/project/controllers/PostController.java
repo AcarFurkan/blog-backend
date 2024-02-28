@@ -4,6 +4,7 @@ import com.acar.project.entities.Post;
 import com.acar.project.entities.User;
 import com.acar.project.requests.PostCreateRequest;
 import com.acar.project.requests.PostUpdateRequest;
+import com.acar.project.response.PostResponse;
 import com.acar.project.services.PostService;
 import com.acar.project.services.UserService;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class PostController {
      }
 
     @GetMapping
-    public List<Post> getAllPosts(@RequestParam Optional<Long> userId) {
+    public List<PostResponse> getAllPosts(@RequestParam Optional<Long> userId) {
         return  postService.getAllPosts(userId);
     }
 

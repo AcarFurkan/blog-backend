@@ -6,6 +6,10 @@ import com.acar.project.entities.User;
 import com.acar.project.repos.PostRepository;
 import com.acar.project.requests.PostCreateRequest;
 import com.acar.project.requests.PostUpdateRequest;
+import com.acar.project.response.LikeResponse;
+import com.acar.project.response.PostResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,28 +18,43 @@ import java.util.Optional;
 @Service
 public class PostService {
 
-    private  PostRepository postRepository;
+    private PostRepository postRepository;
+    private LikeService likeService;
     private UserService userService;
 
-    public  PostService(PostRepository postRepository, UserService userService) {
+    public PostService(PostRepository postRepository, UserService userService) {
         this.postRepository = postRepository;
         this.userService = userService;
+     }
+
+    @Autowired
+    public void setLikeService(@Lazy LikeService likeService) {
+        this.likeService = likeService;
     }
 
 
-     public List<Post> getAllPosts(Optional<Long> userId) {
-        if (userId.isPresent()) {
-            return postRepository.findByUserId(userId.get());
-        }
-        return postRepository.findAll();
+    public List<PostResponse> getAllPosts(Optional<Long> userId) {
+
+        List<Post> posts = userId.map(aLong -> postRepository.findByUserId(aLong)).orElseGet(() -> postRepository.findAll());
+
+        return posts.stream().map(
+                post -> {
+                    List<LikeResponse> likes = likeService.getAllLikesWithParam(Optional.of(post.getId()), Optional.empty());
+                    return new PostResponse(post, likes);
+                }
+        ).toList();
+
     }
 
-     public  Post   getOnePost( Long postId) {
-        return postRepository.findById(postId).orElse(null);
+    public Post getOnePost(Long postId) {
+        Post post = postRepository.findById(postId).orElse(null);
+        if (post != null)
+            return post;
+        return null;
     }
 
     public Post createOnePost(PostCreateRequest newpPostRequest) {
-        User user =  userService.findById(newpPostRequest.getUserId());
+        User user = userService.findById(newpPostRequest.getUserId());
         if (user == null)
             return null;
 
@@ -47,7 +66,7 @@ public class PostService {
     }
 
     public Post updateOnePost(Long postId, PostUpdateRequest postUpdateRequest) {
-       Optional<Post> post =  postRepository.findById(postId);
+        Optional<Post> post = postRepository.findById(postId);
 
         if (post.isPresent()) {
             Post newPost = new Post();
