@@ -7,10 +7,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.security.SignatureException;
 import java.util.Date;
 
 @Component
@@ -25,10 +24,18 @@ public class JwtTokenProvider {
     public String generateJwtToken(Authentication authentication) {
         JwtUserDetails userDetails = (JwtUserDetails) authentication.getPrincipal();
         Date expiryDate = new Date(new Date().getTime() + JWT_EXPIRATION_IN_MS);
-        byte[] apiKeySecretBytes = java.util.Base64.getDecoder().decode(APP_SECRET);
-        Key signingKey = new SecretKeySpec(apiKeySecretBytes, SignatureAlgorithm.HS512.getJcaName());
-        return Jwts.builder().setSubject(Long.toString(userDetails.getId())).setIssuedAt(
-                new Date()).setExpiration(expiryDate).signWith(signingKey).compact();
+        return Jwts.builder()
+                 .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512) // <-- This can be helpful to you
+                .compact();
+
+
+    }
+    private Key getSigningKey() {
+        byte[] keyBytes = this.APP_SECRET.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
 

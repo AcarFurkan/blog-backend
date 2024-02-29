@@ -32,6 +32,10 @@ public class UserService {
        return userRepository.findById(userId).orElse(null);
     }
 
+    public  User findByUserName(String userName) {
+        return userRepository.findByUserName(userName);
+    }
+
     public User updateUser(Long userId, @RequestBody User newUser) {
         Optional<User> user = userRepository.findById(userId);
         if (user.isPresent()) {
