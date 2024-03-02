@@ -9,11 +9,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,57 +32,48 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
     private UserDetailsServiceImpl userDetailsService;
 
-    private JwtAuthenticationEntryPoint handler;
 
-    public SecurityConfig(UserDetailsServiceImpl userDetailsService, JwtAuthenticationEntryPoint handler) {
+    private PasswordEncoder passwordEncoder;
+
+    private JwtAuthenticationFilter jwtAuthFilter;
+
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService, PasswordEncoder passwordEncoder, JwtAuthenticationFilter jwtAuthFilter) {
         this.userDetailsService = userDetailsService;
-        this.handler = handler;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+       return httpSecurity
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(
+                        (auth) -> auth.requestMatchers("/auth/**").permitAll())
+                .authorizeHttpRequests(x -> x.anyRequest().authenticated())
+                .httpBasic(Customizer.withDefaults())
+                .sessionManagement(x -> x.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).
+                authenticationProvider(authenticationProvider()).
+                addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class).build();
+
+    }
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder);
+        return authenticationProvider;
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity
-                .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration configuration = new CorsConfiguration();
-                    configuration.setAllowedOrigins(List.of("*")); // Tüm orijinlere izin ver
-                    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")); // Belirli metodlara izin ver
-                    configuration.setAllowedHeaders(List.of("*")); // Tüm başlıklara izin ver
-                    configuration.setAllowCredentials(true); // Çerezlerin gönderilmesine izin ver
-                    return configuration;
-                })).
-                csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling((exception) -> exception.authenticationEntryPoint(handler))
-                .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(
-                        (auth) -> auth.requestMatchers("/auth/**").permitAll().requestMatchers(HttpMethod.GET, "/posts")
-                                .permitAll()
-                                .requestMatchers(HttpMethod.GET, "/comments")
-                                .permitAll()
-                                .anyRequest().authenticated()
-                );
-
-
-        httpSecurity.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-        return httpSecurity.build();
-    }
 
 }

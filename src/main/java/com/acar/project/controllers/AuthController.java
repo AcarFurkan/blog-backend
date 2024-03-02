@@ -44,7 +44,7 @@ public class AuthController {
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(loginRequest.getUserName(), loginRequest.getPassword());
         Authentication auth = authenticationManager.authenticate(authToken);
         SecurityContextHolder.getContext().setAuthentication(auth);
-        String jwtToken = jwtTokenProvider.generateJwtToken(auth);
+        String jwtToken = jwtTokenProvider.generateJwtTokenByAuth(auth);
 
         return "Bearer " + jwtToken ;
     }
@@ -55,6 +55,7 @@ public class AuthController {
              System.out.println("User already in use.");
              return new ResponseEntity<>("User already in use.", HttpStatus.BAD_REQUEST);
         }
+         System.out.println("User registered successfully.");
         User user = new User();
         user.setUserName(registerRequest.getUserName());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));

@@ -29,10 +29,10 @@ public class UserService {
     }
 
     public User findById(Long userId) {
-       return userRepository.findById(userId).orElse(null);
+        return userRepository.findById(userId).orElse(null);
     }
 
-    public  User findByUserName(String userName) {
+    public User findByUserName(String userName) {
         return userRepository.findByUserName(userName);
     }
 

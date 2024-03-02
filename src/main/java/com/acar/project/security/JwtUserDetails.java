@@ -28,6 +28,10 @@ public class JwtUserDetails implements UserDetails {
     }
 
     public static JwtUserDetails create(User user) {
+        System.out.println("Creating user details");
+        System.out.println(user.getUserName());
+        System.out.println(user.getPassword());
+        System.out.println(user.getId());
         List<GrantedAuthority> authoritiesList = new ArrayList<>();
         authoritiesList.add(new SimpleGrantedAuthority("user"));
         return new JwtUserDetails(user.getId(), user.getUserName(), user.getPassword(), authoritiesList);

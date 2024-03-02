@@ -26,8 +26,6 @@ public class PostController {
 
     @GetMapping
     public List<PostResponse> getAllPosts(@RequestParam Optional<Long> userId) {
-        System.out.println("userId: " + userId);
-        System.out.println("afgadfgdsgfsgdfg");
         return  postService.getAllPosts(userId);
     }
 

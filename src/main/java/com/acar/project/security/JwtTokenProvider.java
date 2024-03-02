@@ -2,15 +2,24 @@ package com.acar.project.security;
 
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class JwtTokenProvider {
@@ -21,42 +30,69 @@ public class JwtTokenProvider {
     @Value("${blog.app.jwtExpirationInMs}")
     private int JWT_EXPIRATION_IN_MS;
 
-    public String generateJwtToken(Authentication authentication) {
-        JwtUserDetails userDetails = (JwtUserDetails) authentication.getPrincipal();
-        Date expiryDate = new Date(new Date().getTime() + JWT_EXPIRATION_IN_MS);
-        return Jwts.builder()
-                 .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512) // <-- This can be helpful to you
-                .compact();
+    public String generateTokenByUserName(String userName) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, userName);
+    }
+
+    public String generateJwtTokenByAuth(Authentication auth) {
+        Map<String, Object> claims = new HashMap<>();
+        JwtUserDetails userDetails = (JwtUserDetails) auth.getPrincipal();
+        return  createToken(claims, userDetails.getUsername());
 
 
     }
-    private Key getSigningKey() {
-        byte[] keyBytes = this.APP_SECRET.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+
+    public Boolean validateToken(String token, UserDetails userDetails) {
+        String username = extractUser(token);
+        Date expirationDate = extractExpiration(token);
+        return userDetails.getUsername().equals(username) && !expirationDate.before(new Date());
     }
 
-
-    Long getUserIdFromJwt(String token) {
-        Claims claims = Jwts.parserBuilder().setSigningKey(APP_SECRET).build().parseClaimsJws(token).getBody();
-        return Long.parseLong(claims.getSubject());
+    private Date extractExpiration(String token) {
+        Claims claims = Jwts
+                .parserBuilder()
+                .setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getExpiration();
     }
 
-    boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder().setSigningKey(APP_SECRET).build().parseClaimsJws(token);
-            return !isTokenExpired(token);
-        } catch (MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException e) {
-            return false;
-        }
+    public String extractUser(String token) {
+        Claims claims = Jwts
+                .parserBuilder()
+                .setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getSubject();
     }
 
 
     private boolean isTokenExpired(String token) {
-        Date expiration = Jwts.parserBuilder().setSigningKey(APP_SECRET).build().parseClaimsJws(token).getBody().getExpiration();
+        System.out.println("Checking expiration");
+        Date expiration = Jwts.parserBuilder().setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody().getExpiration();
         return expiration.before(new Date());
     }
+
+    private String createToken(Map<String, Object> claims, String userName) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(userName)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_IN_MS))
+                .signWith(getSignKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    private Key getSignKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(APP_SECRET);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
 
 }
