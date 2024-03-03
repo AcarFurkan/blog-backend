@@ -8,6 +8,7 @@ import com.acar.project.requests.CommentCreateRequest;
 import com.acar.project.requests.CommentUpdateRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +50,7 @@ public class CommentService {
             newComment.setUser(user);
             newComment.setPost(post);
             newComment.setContent(comment.getText());
+            newComment.setCreateDate(new Date());
             return commentRepository.save(newComment);
         }
         return null;

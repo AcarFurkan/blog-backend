@@ -2,11 +2,15 @@ package com.acar.project.services;
 
 
 import com.acar.project.entities.User;
+import com.acar.project.repos.CommentRepository;
+import com.acar.project.repos.LikeRepository;
+import com.acar.project.repos.PostRepository;
 import com.acar.project.repos.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,9 +18,15 @@ import java.util.Optional;
 public class UserService {
 
     UserRepository userRepository;
+    PostRepository postRepository;
+    CommentRepository commentRepository;
+    LikeRepository likeRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PostRepository postRepository, CommentRepository commentRepository, LikeRepository likeRepository) {
         this.userRepository = userRepository;
+        this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
+        this.likeRepository = likeRepository;
     }
 
 
@@ -48,5 +58,18 @@ public class UserService {
 
     public void deleteById(Long userId) {
         userRepository.deleteById(userId);
+    }
+
+
+    public List<Object> getUserActivity(Long userId) {
+        List<Long> postIds = postRepository.findTopByUserId(userId);
+        if(postIds.isEmpty())
+            return null;
+        List<Object> comments = commentRepository.findUserCommentsByPostId(postIds);
+        List<Object> likes = likeRepository.findUserLikesByPostId(postIds);
+        List<Object> result = new ArrayList<>();
+        result.addAll(comments);
+        result.addAll(likes);
+        return result;
     }
 }

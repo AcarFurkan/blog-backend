@@ -8,6 +8,8 @@ import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import java.util.Date;
+
 @Entity
 @Table(name = "post")
 @Data
@@ -28,5 +30,6 @@ public class Post {
     String text;
 
 
-
+    @Temporal(TemporalType.TIMESTAMP)
+    Date createDate;
 }
