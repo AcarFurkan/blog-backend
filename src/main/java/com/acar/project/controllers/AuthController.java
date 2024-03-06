@@ -1,10 +1,14 @@
 package com.acar.project.controllers;
 
 
+import com.acar.project.entities.RefreshToken;
 import com.acar.project.entities.User;
+import com.acar.project.exceptions.UserNotFoundException;
+import com.acar.project.requests.RefreshRequest;
 import com.acar.project.requests.UserRequest;
 import com.acar.project.response.AuthResponse;
 import com.acar.project.security.JwtTokenProvider;
+import com.acar.project.services.RefreshTokenService;
 import com.acar.project.services.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,10 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -31,24 +32,31 @@ public class AuthController {
 
     private PasswordEncoder passwordEncoder;
 
+    private RefreshTokenService refreshTokenService;
+
 
     public AuthController(AuthenticationManager authenticationManager, UserService userService,
-                          PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+                          PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, RefreshTokenService refreshTokenService) {
         this.authenticationManager = authenticationManager;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/login")
     public AuthResponse login(@RequestBody UserRequest loginRequest) {
+        User user = userService.findByUserName(loginRequest.getUserName());
+        if(user == null) {
+            throw new UserNotFoundException();
+        }
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(loginRequest.getUserName(), loginRequest.getPassword());
         Authentication auth = authenticationManager.authenticate(authToken);
         SecurityContextHolder.getContext().setAuthentication(auth);
-        User user = userService.findByUserName(loginRequest.getUserName());
         String jwtToken = jwtTokenProvider.generateJwtTokenByAuth(auth);
         AuthResponse authResponse = new AuthResponse();
-        authResponse.setMessage("Bearer " + jwtToken);
+        authResponse.setAccessToken("Bearer " + jwtToken);
+        authResponse.setRefreshToken(refreshTokenService.createRefreshToken(user));
         authResponse.setUserId(user.getId());
         return authResponse;
     }
@@ -57,19 +65,51 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@RequestBody UserRequest registerRequest) {
         AuthResponse authResponse = new AuthResponse();
         if (userService.findByUserName(registerRequest.getUserName()) != null) {
-            System.out.println("User already in use.");
             authResponse.setMessage("User already in use.");
             return new ResponseEntity<>(authResponse, HttpStatus.BAD_REQUEST);
         }
-        System.out.println("User registered successfully.");
         User user = new User();
         user.setUserName(registerRequest.getUserName());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         User savedUser = userService.save(user);
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(registerRequest.getUserName(), registerRequest.getPassword());
+        Authentication auth = authenticationManager.authenticate(authToken);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        String jwtToken = jwtTokenProvider.generateJwtTokenByAuth(auth);
+
         authResponse.setMessage("User registered successfully.");
+        authResponse.setAccessToken("Bearer " + jwtToken);
+        authResponse.setRefreshToken(refreshTokenService.createRefreshToken(savedUser));
         authResponse.setUserId(savedUser.getId());
 
         return new ResponseEntity<>(authResponse, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest refreshRequest) {
+        AuthResponse response = new AuthResponse();
+        RefreshToken token = refreshTokenService.getByUser(refreshRequest.getUserId());
+        if(token.getToken().equals(refreshRequest.getRefreshToken()) &&
+                !refreshTokenService.isRefreshExpired(token)) {
+
+            User user = token.getUser();
+            String jwtToken = jwtTokenProvider.generateJwtTokenByUserId(user.getId());
+            response.setMessage("token successfully refreshed.");
+            response.setAccessToken("Bearer " + jwtToken);
+            response.setUserId(user.getId());
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } else {
+            response.setMessage("refresh token is not valid.");
+            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    private void handleUserNotFound() {
+
     }
 
 }

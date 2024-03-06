@@ -6,11 +6,14 @@ import com.acar.project.entities.User;
 import com.acar.project.repos.CommentRepository;
 import com.acar.project.requests.CommentCreateRequest;
 import com.acar.project.requests.CommentUpdateRequest;
+import com.acar.project.response.CommentResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -26,19 +29,22 @@ public class CommentService {
     }
 
 
-    public List<Comment> getAllComments(Optional<Long> postId, Optional<Long> userId) {
+    public List<CommentResponse> getAllComments(Optional<Long> postId, Optional<Long> userId) {
+        List<Comment> comments;
         if (userId.isPresent() && postId.isPresent()) {
-            return commentRepository.findByUserIdAndPostId(userId.get(), postId.get());
+            comments = commentRepository.findByUserIdAndPostId(userId.get(), postId.get());
         } else if (userId.isPresent()) {
-            return commentRepository.findByUserId(userId.get());
+            comments = commentRepository.findByUserId(userId.get());
         } else if (postId.isPresent()) {
-            return commentRepository.findByPostId(postId.get());
+            comments = commentRepository.findByPostId(postId.get());
         } else
-            return commentRepository.findAll();
+            comments = commentRepository.findAll();
+        return comments.stream().map(CommentResponse::new).collect(Collectors.toList());
+
     }
 
-    public Comment getCommentById(Long commentId) {
-        return commentRepository.findById(commentId).orElse(null);
+    public CommentResponse getCommentById(Long commentId) {
+        return new CommentResponse(Objects.requireNonNull(commentRepository.findById(commentId).orElse(null)));
     }
 
 

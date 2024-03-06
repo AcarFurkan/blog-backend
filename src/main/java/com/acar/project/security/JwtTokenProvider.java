@@ -30,17 +30,16 @@ public class JwtTokenProvider {
     @Value("${blog.app.jwtExpirationInMs}")
     private int JWT_EXPIRATION_IN_MS;
 
-    public String generateTokenByUserName(String userName) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userName);
-    }
 
     public String generateJwtTokenByAuth(Authentication auth) {
         Map<String, Object> claims = new HashMap<>();
         JwtUserDetails userDetails = (JwtUserDetails) auth.getPrincipal();
         return  createToken(claims, userDetails.getUsername());
+    }
 
-
+    public String generateJwtTokenByUserId(Long id) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, id.toString());
     }
 
     public Boolean validateToken(String token, UserDetails userDetails) {
@@ -93,6 +92,7 @@ public class JwtTokenProvider {
         byte[] keyBytes = Decoders.BASE64.decode(APP_SECRET);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
 
 
 }

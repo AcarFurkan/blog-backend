@@ -3,6 +3,7 @@ package com.acar.project.controllers;
 import com.acar.project.entities.Comment;
 import com.acar.project.requests.CommentCreateRequest;
 import com.acar.project.requests.CommentUpdateRequest;
+import com.acar.project.response.CommentResponse;
 import com.acar.project.services.CommentService;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,12 +22,12 @@ public class CommentController {
     }
 
     @GetMapping
-    public List<Comment> getAllComments(@RequestParam Optional<Long> postId, @RequestParam Optional<Long> userId) {
+    public List<CommentResponse> getAllComments(@RequestParam Optional<Long> postId, @RequestParam Optional<Long> userId) {
        return commentService.getAllComments(postId, userId);
     }
 
     @GetMapping("{commentId}")
-    public  Comment getCommentById(@PathVariable Long commentId) {
+    public  CommentResponse getCommentById(@PathVariable Long commentId) {
         return commentService.getCommentById(commentId);
     }
 
